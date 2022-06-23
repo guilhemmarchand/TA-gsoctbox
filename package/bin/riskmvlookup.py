@@ -198,12 +198,20 @@ class RiskMvLookup(StreamingCommand):
                     else:
                         logging.debug("source_field_value=\"{}\" is not a list, nothing to do.".format(source_field_value))
                         # these fields are single values, do not change anything
-                        target_field_value = record[str(target_field_name)]
-                        target_field_ci_value = record[str(target_field_ci_name)]
 
-                        # Add to our new record
-                        final_record[str(target_field_name)] = target_field_value
-                        final_record[str(target_field_ci_name)] = target_field_ci_value
+                        try:
+                            target_field_value = record[str(target_field_name)]
+                            # Add to our new record
+                            final_record[str(target_field_name)] = target_field_value
+                        except Exception as e:
+                            logging.warn("Failed to extract field=\"{}\", this field does not exist in the record=\"{}\"".format(target_field_ci_name, json.dump(target_field_ci_name)))
+
+                        try:
+                            target_field_ci_value = record[str(target_field_ci_name)]
+                            # Add to our new record
+                            final_record[str(target_field_ci_name)] = target_field_ci_value
+                        except Exception as e:
+                            logging.warn("Failed to extract field=\"{}\", this field does not exist in the record=\"{}\"".format(target_field_ci_name, json.dump(target_field_ci_name)))
 
                     # Add all other fields from the original except those
 
