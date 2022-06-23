@@ -47,7 +47,7 @@
     "meta": {
         "name": "TA-gsoctbox",
         "restRoot": "ta_gsoctbox",
-        "version": "1.0.2",
+        "version": "1.0.3",
         "displayName": "utility toolbox for GSOC",
         "schemaVersion": "0.0.3"
     }
