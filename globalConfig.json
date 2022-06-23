@@ -1,0 +1,54 @@
+{
+    "pages": {
+        "configuration": {
+            "tabs": [
+                {
+                    "name": "logging",
+                    "entity": [
+                        {
+                            "type": "singleSelect",
+                            "label": "Log level",
+                            "options": {
+                                "disableSearch": true,
+                                "autoCompleteFields": [
+                                    {
+                                        "value": "DEBUG",
+                                        "label": "DEBUG"
+                                    },
+                                    {
+                                        "value": "INFO",
+                                        "label": "INFO"
+                                    },
+                                    {
+                                        "value": "WARNING",
+                                        "label": "WARNING"
+                                    },
+                                    {
+                                        "value": "ERROR",
+                                        "label": "ERROR"
+                                    },
+                                    {
+                                        "value": "CRITICAL",
+                                        "label": "CRITICAL"
+                                    }
+                                ]
+                            },
+                            "defaultValue": "INFO",
+                            "field": "loglevel"
+                        }
+                    ],
+                    "title": "Logging"
+                }
+            ],
+            "title": "Configuration",
+            "description": "Configure the Add-on"
+        }
+    },
+    "meta": {
+        "name": "TA-gsoctbox",
+        "restRoot": "ta_gsoctbox",
+        "version": "1.0.0",
+        "displayName": "utility toolbox for GSOC",
+        "schemaVersion": "0.0.3"
+    }
+}

@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "2.0.1",
+  "info": {
+    "title": "TA-gsoctbox",
+    "id": {
+      "group": null,
+      "name": "TA-gsoctbox",
+      "version": "1.0.0"
+    },
+    "author": [
+      {
+        "name": "GSOC",
+        "email": null,
+        "company": "Santander"
+      }
+    ],
+    "releaseDate": null,
+    "description": "This Addon contains custom commands for GSOC",
+    "classification": {
+      "intendedAudience": null,
+      "categories": [],
+      "developmentStatus": null
+    },
+    "commonInformationModels": null,
+    "license": {
+      "name": null,
+      "text": null,
+      "uri": null
+    },
+    "privacyPolicy": {
+      "name": null,
+      "text": null,
+      "uri": null
+    },
+    "releaseNotes": {
+      "name": null,
+      "text": null,
+      "uri": null
+    }
+  },
+  "dependencies": null,
+  "tasks": null,
+  "inputGroups": null,
+  "incompatibleApps": null,
+  "platformRequirements": null,
+  "supportedDeployments": [
+    "_standalone",
+    "_distributed",
+    "_search_head_clustering"
+  ],
+  "targetWorkloads": [
+    "_search_heads"
+  ]
+}
