@@ -108,6 +108,9 @@ class RiskMvLookup(StreamingCommand):
                 # if we have the request field, proceed, otherwise render
                 record_has_target = False
 
+                # Set the default boolean
+                target_is_list = False
+
                 # try getting a value
                 try:
                     source_field_value = record[source_field]
@@ -129,6 +132,9 @@ class RiskMvLookup(StreamingCommand):
 
                     if type(source_field_value) == list:
                         logging.info("command=\"riskmvlookup\", detected multivalue format, source_field_value=\"{}\" is a list".format(source_field_value))
+
+                        # Set true
+                        target_is_list = True
 
                         # do the enrichment
 
@@ -198,20 +204,7 @@ class RiskMvLookup(StreamingCommand):
                     else:
                         logging.debug("source_field_value=\"{}\" is not a list, nothing to do.".format(source_field_value))
                         # these fields are single values, do not change anything
-
-                        try:
-                            target_field_value = record[str(target_field_name)]
-                            # Add to our new record
-                            final_record[str(target_field_name)] = target_field_value
-                        except Exception as e:
-                            logging.warn("Failed to extract field=\"{}\", this field does not exist in the record=\"{}\"".format(target_field_ci_name, json.dump(target_field_ci_name)))
-
-                        try:
-                            target_field_ci_value = record[str(target_field_ci_name)]
-                            # Add to our new record
-                            final_record[str(target_field_ci_name)] = target_field_ci_value
-                        except Exception as e:
-                            logging.warn("Failed to extract field=\"{}\", this field does not exist in the record=\"{}\"".format(target_field_ci_name, json.dump(target_field_ci_name)))
+                        target_is_list = False
 
                     # Add all other fields from the original except those
 
@@ -225,9 +218,14 @@ class RiskMvLookup(StreamingCommand):
                     # loop through the dict
                     for k in record:
 
-                        # if not our input field, and not _time
-                        if k != '_time' and k != target_field_name and k!= target_field_ci_name:
-                            final_record[k] = record[k]
+                        if target_is_list:
+                            # if not our input field, and not _time
+                            if k != '_time' and k != target_field_name and k!= target_field_ci_name:
+                                final_record[k] = record[k]
+                        else:
+                            # if not our input field, and not _time
+                            if k != '_time':
+                                final_record[k] = record[k]
 
                     # if time was defined, add it
                     if time_value:
@@ -237,7 +235,7 @@ class RiskMvLookup(StreamingCommand):
                     logging.debug("final_record=\"{}\"".format(final_record))
                     yield final_record
 
-                # else render everythong as per the original record
+                # else render everything as per the original record
                 else:
 
                     # get time, if any
@@ -251,7 +249,7 @@ class RiskMvLookup(StreamingCommand):
                     for k in record:
 
                         # if not our input field, and not _time
-                        if k != '_time' and k != target_field_name and k!= target_field_ci_name:
+                        if k != '_time':
                             final_record[k] = record[k]
 
                     # if time was defined, add it
