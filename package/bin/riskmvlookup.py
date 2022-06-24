@@ -180,19 +180,19 @@ class RiskMvLookup(StreamingCommand):
                                 query_result = item
                             logging.debug("splQuery was successful, result=\"{}\"".format(json.dumps(query_result, indent=0)))
 
-                            # extract our target fields
-                            target_field_value = query_result[str(target_field_name)]
-                            logging.debug("target_field=\"{}\"".format(target_field_value))
-                            target_field_ci_value = query_result[target_field_ci_name]
-                            logging.debug("target_field_ci=\"{}\"".format(target_field_ci_value))
-
                             # Add to our new record
                             try:
+                                # attempt extract target
+                                target_field_value = query_result[str(target_field_name)]
+                                logging.debug("target_field=\"{}\"".format(target_field_value))
                                 final_record[str(target_field_name)] = target_field_value
                             except Exception as e:
                                 logging.info("No value for field=\"{}\" to be extracted".format(target_field_name))
 
                             try:
+                                # attempt extract target
+                                target_field_ci_value = query_result[target_field_ci_name]
+                                logging.debug("target_field_ci=\"{}\"".format(target_field_ci_value))
                                 final_record[str(target_field_ci_name)] = target_field_ci_value
                             except Exception as e:
                                 logging.info("No value for field=\"{}\" to be extracted".format(target_field_ci_name))
