@@ -58,15 +58,22 @@ class RiskMvLookup(StreamingCommand):
 
         # set loglevel
         loglevel = 'INFO'
-        conf_file = "ta_gsoctbox_settings"
-        confs = self.service.confs[str(conf_file)]
-        for stanza in confs:
-            if stanza.name == 'logging':
-                for stanzakey, stanzavalue in stanza.content.items():
-                    if stanzakey == "loglevel":
-                        loglevel = stanzavalue
-        logginglevel = logging.getLevelName(loglevel)
-        log.setLevel(logginglevel)
+
+        # If fails, don't break
+        try:
+            conf_file = "ta_gsoctbox_settings"
+            confs = self.service.confs[str(conf_file)]
+            for stanza in confs:
+                if stanza.name == 'logging':
+                    for stanzakey, stanzavalue in stanza.content.items():
+                        if stanzakey == "loglevel":
+                            loglevel = stanzavalue
+            logginglevel = logging.getLevelName(loglevel)
+            log.setLevel(logginglevel)
+
+        except Exception as e:
+            logging.warning("Failed to retrieve the logging level from application level configuration with exception=\"{}\"")
+            log.setLevel(loglevel)
 
         # performance counter
         start = time.time()
