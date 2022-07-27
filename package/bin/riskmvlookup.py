@@ -171,9 +171,8 @@ class RiskMvLookup(StreamingCommand):
                             " | `get_asset_zone(" + str(source_field) + ")`" + " | `get_asset(" + str(source_field) + ")`"
 
                         # replacement logic
-                        splQuery = splQuery + " | rex field=" + str(source_field) + "_asset \"(?<risk_" + str(source_field) + "_ci>ci\w+)\"" +\
-                            " | eval risk_" + str(source_field) + " = coalesce(risk_" + str(source_field) + "_ci, " + str(source_field) + ") " +\
-                            " | eval " + str(source_field) + " = coalesce(" + str(source_field) + "_ci, " + str(source_field) + ") " +\
+                        splQuery = splQuery + " | eval risk_" + str(source_field) + " = coalesce(risk_" + str(source_field) + "_ci_id, " + str(source_field) + ") " +\
+                            " | eval " + str(source_field) + " = coalesce(" + str(source_field) + "_ci_id, " + str(source_field) + ") " +\
                             " | stats values(risk*) as \"risk*\""
                         logging.debug("splQuery=\"{}\"".format(splQuery))
 
