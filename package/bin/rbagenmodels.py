@@ -12,6 +12,7 @@ import sys
 import splunk
 import splunk.entity
 import json
+import requests
 import time
 import logging
 import urllib3
@@ -42,6 +43,18 @@ import splunklib.results as results
 
 class RbaGenModels(GeneratingCommand):
 
+    app = Option(
+        doc='''
+        **Syntax:** **app=****
+        **Description:** The app namespace, this conditions where models are going to be created and managed.''',
+        require=False, default="search", validate=validators.Match("app", r"^.*"))
+
+    owner = Option(
+        doc='''
+        **Syntax:** **owner=****
+        **Description:** The owner of ML models to be genrated.''',
+        require=False, default="admin", validate=validators.Match("owner", r"^.*"))
+
     bunit_search_provider = Option(
         doc='''
         **Syntax:** **bunit_search_provider=****
@@ -66,6 +79,23 @@ class RbaGenModels(GeneratingCommand):
         **Description:** The list of KPIs for which a model is going to be created and trained.''',
         require=True, default=None, validate=validators.Match("kpis", r"^.*"))
 
+    lower_threshold = Option(
+        doc='''
+        **Syntax:** **lower_threshold=****
+        **Description:** The lower threshold value for the ML model.''',
+        require=False, default="0.005", validate=validators.Match("lower_threshold", r"^[\d|\.]*$"))
+
+    upper_threshold = Option(
+        doc='''
+        **Syntax:** **upper_threshold=****
+        **Description:** The upper threshold value for the ML model.''',
+        require=False, default="0.005", validate=validators.Match("lower_threshold", r"^[\d|\.]*$"))
+
+    time_factor = Option(
+        doc='''
+        **Syntax:** **time_factor=****
+        **Description:** The time factor value for the ML model.''',
+        require=False, default="%w%H", validate=validators.Match("lower_threshold", r"^.*$"))
 
     def generate(self, **kwargs):
 
@@ -81,6 +111,9 @@ class RbaGenModels(GeneratingCommand):
         logginglevel = logging.getLevelName(loglevel)
         log.setLevel(logginglevel)
 
+        # get current user
+        username = self._metadata.searchinfo.username
+
         # Get the session key
         session_key = self._metadata.searchinfo.session_key
 
@@ -93,10 +126,19 @@ class RbaGenModels(GeneratingCommand):
         service = client.connect(
             token=str(session_key),
             owner="nobody",
-            app="TA-gsoctbox",
+            app=self.app,
             host="localhost",
             port=splunkd_port
         )
+
+        # Data collection
+        collection_name = "kv_rba_bunit_mlmodels_config"
+        collection = service.kvstore[collection_name]        
+
+        # Define an header for requests authenticated communications with splunkd
+        header = {
+            'Authorization': 'Splunk %s' % session_key,
+            'Content-Type': 'application/json'}
 
         # kpis
         # We expect a comma separated list of KPIs, or a native list
@@ -132,8 +174,14 @@ class RbaGenModels(GeneratingCommand):
                 if isinstance(item, dict):
                     try:
                         result_bunit_list = item.get('risk_object_bunit')
-                        for bunit in result_bunit_list:
-                            bunit_list.append(bunit)
+                        
+                        # check if is a list
+                        if isinstance(result_bunit_list, list):
+                            for bunit in result_bunit_list:
+                                bunit_list.append(bunit)
+                        else:
+                            bunit_list.append(result_bunit_list)
+
                     except Exception as e:
                         raise Exception('Could not find the expected field risk_object_bunit from upstream results with exception=\"{}\"'.format(str(e)))
 
@@ -153,17 +201,104 @@ class RbaGenModels(GeneratingCommand):
             # loop through the list of KPIs
             for kpi in kpis_list:
 
+                # check if we have a configuration in the KVstore for that entity
+                # if we do not, add a new record with the default threshold values
+
+                try:
+
+                    # Define the KV query
+                    query_string = {
+                        "$and": [ {
+                            'bunit': bunit,
+                            'kpi': kpi,
+                            } ]
+                        }    
+
+                    # try get to get the key
+                    kvrecord = collection.data.query(query=(json.dumps(query_string)))[0]
+                    key = kvrecord.get('_key')
+
+                except Exception as e:
+                    key = None
+
+                # this bunit is new
+                if not key:
+
+                    # define the values for the ML models (from default)
+                    lower_threshold = self.lower_threshold
+                    upper_threshold = self.upper_threshold
+                    time_factor = self.time_factor
+
+                    new_kvrecord = {
+                        "bunit": bunit,
+                        "kpi": kpi,
+                        "lower_threshold": self.lower_threshold,
+                        "upper_threshold": self.upper_threshold,
+                        "time_factor": self.time_factor,
+                        "last_exec": "pending",
+                        "last_status": "pending",
+                        "last_results_count": "pending",
+                        "last_message": "pending",
+                        "modelid": "pending",
+                    }
+
+                    collection.data.insert(json.dumps(new_kvrecord))
+                    logging.info("successfully inserted the new bunit record in the KVstore, record=\"{}\"".format(json.dumps(new_kvrecord, indent=4)))
+
+                else:
+
+                    try:
+
+                        # get the values from the KVstore
+                        lower_threshold = kvrecord.get('lower_threshold')
+                        upper_threshold = kvrecord.get('uper_threshold')
+                        time_factor = kvrecord.get('time_factor')
+
+                        # log
+                        logging.info("successfully loaded the bunit configuration from record=\"{}\"".format(json.dumps(kvrecord, indent=2)))
+
+                    except Exception as e:
+
+                        # fallback to default values
+                        lower_threshold = self.lower_threshold
+                        upper_threshold = self.upper_threshold
+                        time_factor = self.time_factor
+
+                        # log
+                        logging.error("failure to retrieve values from the KVstore record=\"{}\" with exception=\"{}\"".format(json.dumps(kvrecord, indent=2), str(e)))
+
                 # define:
 
                 # - the name of model id (extract the second segment of the metric_name)
                 modelid = "rba_" + str(bunit).replace(" ", "_").replace("-", "_").lower() + "_" + kpi.split(".")[1]
 
+                # set the lookup name
+                ml_model_lookup_name = "__mlspl_" + modelid + ".mlmodel"
+
+                # if the file exists already in the app directory, it needs to be purged from a REST call
+                if os.path.exists(os.path.join(splunkhome, 'etc', 'apps', self.app, 'lookups', ml_model_lookup_name)):
+
+                    # Attempt to delete the current ml model
+                    rest_url = 'https://localhost:' + str(splunkd_port) \
+                                + '/servicesNS/' + str(username) + '/' + self.app + '/data/lookup-table-files/' + str(ml_model_lookup_name)
+
+                    logging.info("attempting to delete Machine Learning lookup_name=\"{}\"".format(ml_model_lookup_name))
+                    try:
+                        response = requests.delete(rest_url, headers=header, verify=False)
+                        if response.status_code not in (200, 201, 204):
+                            logging.error("failure to delete ML lookup_name=\"{}\", url=\"{}\", response.status_code=\"{}\", response.text=\"{}\"".format(ml_model_lookup_name, rest_url, response.status_code, response.text))
+                        else:                                    
+                            logging.info("action=\"success\", deleted lookup_name=\"{}\" successfully".format(ml_model_lookup_name))
+
+                    except Exception as e:
+                        logging.error("failure to delete ML lookup_name=\"{}\" with exception:\"{}\"".format(ml_model_lookup_name, str(e)))
+
                 # - the search logic that generates and train the ML model
 
                 mlmodel_gen_search = "| mstats avg(rba.cummulative_risk_score) as rba.cummulative_risk_score where index=security_siem_metrics " +\
                     "risk_object_bunit=\"" + bunit.replace("|", "\\|") + "\" by risk_object_bunit span=1h" +\
-                    "\n| eval factor=strftime(_time, \"%w%H\")" +\
-                    "\n| fit DensityFunction rba.cummulative_risk_score lower_threshold=0.005 upper_threshold=0.005 into " + modelid  + " by factor" +\
+                    "\n| eval factor=strftime(_time, \"" + time_factor + "\")" +\
+                    "\n| fit DensityFunction rba.cummulative_risk_score lower_threshold=" + lower_threshold + " upper_threshold=" + upper_threshold + " into " + modelid  + " by factor" +\
                     "\n| rex field=BoundaryRanges \"(-Infinity:(?<LowerBound>[\d|\.]*))|((?<UpperBound>[\d|\.]*):Infinity)\"" +\
                     "\n| foreach LowerBound UpperBound [ eval <<FIELD>> = if(isnum('<<FIELD>>'), '<<FIELD>>', 0) ]" +\
                     "\n| fields _time rba.cummulative_risk_score LowerBound UpperBound"
@@ -200,13 +335,33 @@ class RbaGenModels(GeneratingCommand):
                     runtime = round(time.time()-start_time, 3)
                     logging.info("finished ML train search for bunit=\"{}\", kpi=\"{}\", results_count=\"{}\", runtime=\"{}\"".format(bunit, kpi, results_count, runtime))
 
+                    # handle permissions if we have results
+                    if results_count>0:
+
+                        # Handle permissions and sharing for the ML model lookup
+                        logging.info("attempting to update permissions of Machine Learning lookup_name=\"{}\"".format(ml_model_lookup_name))
+
+                        rest_url = 'https://localhost:' + str(splunkd_port) \
+                                    + '/servicesNS/' + str(username) + '/' + self.app + '/data/lookup-table-files/' + str(ml_model_lookup_name) + "/acl"
+
+                        try:
+                            response = requests.post(rest_url, headers=header, data={'owner' : self.owner, 'sharing' : 'global', 'perms.write' : 'admin', 'perms.read' : '*'},
+                                                verify=False)
+                            if response.status_code not in (200, 201, 204):
+                                logging.error("failure to update ML permissions lookup_name=\"{}\", url=\"{}\", response.status_code=\"{}\", response.text=\"{}\"".format(ml_model_lookup_name, rest_url, response.status_code, response.text))
+                            else:                                    
+                                logging.info("action=\"success\", permissions of lookup_name=\"{}\" were updated successfully".format(ml_model_lookup_name))
+
+                        except Exception as e:
+                            logging.error("failure to update ML permissions lookup_name=\"{}\" with exception:\"{}\"".format(ml_model_lookup_name, str(e)))
+
                     # yield results
                     yield_record = {
                         '_time': time.time(),
                         'action': 'success',
                         'bunit': bunit,
                         'kpi': kpi,
-                        'modelid': modelid,
+                        'modelid': ml_model_lookup_name,
                         'results_count': results_count,
                         'runtime': runtime,
                         'search': mlmodel_gen_search,
@@ -225,6 +380,26 @@ class RbaGenModels(GeneratingCommand):
                         'search': yield_record.get('mlmodel_gen_search'),
                     }
 
+                    # Insert the last execution, and the status in the KVstore record
+                    try:
+                        current_kvrecord = collection.data.query(query=(json.dumps(query_string)))[0]
+                        current_key = current_kvrecord.get('_key')
+
+                        # update or add our Metadata
+                        current_kvrecord['last_exec'] = time.time()
+                        current_kvrecord['last_status'] = 'success'
+                        current_kvrecord['last_results_count'] = results_count
+                        current_kvrecord['last_message'] = "Machine Leaning Model ml_model_lookup_name=\"{}\" was processed successfully".format(ml_model_lookup_name)
+                        current_kvrecord['modelid'] = ml_model_lookup_name
+                        collection.data.update(str(current_key), json.dumps(current_kvrecord))
+
+                    except Exception as e:
+                        logging.error("failure to update the KVstore and add execution Metadata, exception=\"{}\"".format(str(e)))
+
+                #
+                # ML gen terminated for that entity / kpi
+                #
+
                 except Exception as e:
                     logging.error("failed to run the bunit ML model train search with exception=\"{}\"".format(str(e)))
 
@@ -235,7 +410,7 @@ class RbaGenModels(GeneratingCommand):
                         'exception': str(e),
                         'bunit': bunit,
                         'kpi': kpi,
-                        'modelid': modelid,
+                        'modelid': ml_model_lookup_name,
                         'results_count': results_count,
                         'search': mlmodel_gen_search,
                         '_raw': "failed processing ML model training"
@@ -252,5 +427,21 @@ class RbaGenModels(GeneratingCommand):
                         'results_count': yield_record.get('results_count'),
                         'search': yield_record.get('mlmodel_gen_search'),
                     }
+
+                    # Insert the last execution, and the status in the KVstore record
+                    try:
+                        current_kvrecord = collection.data.query(query=(json.dumps(query_string)))[0]
+                        current_key = current_kvrecord.get('_key')
+
+                        # update or add our Metadata
+                        current_kvrecord['last_exec'] = time.time()
+                        current_kvrecord['last_status'] = 'failure'
+                        current_kvrecord['last_results_count'] = 0
+                        current_kvrecord['last_message'] = "Machine Leaning Model ml_model_lookup_name=\"{}\" training has failed, exception=\{}\"".format(ml_model_lookup_name, str(e))
+                        current_kvrecord['modelid'] = ml_model_lookup_name
+                        collection.data.update(str(current_key), json.dumps(current_kvrecord))
+
+                    except Exception as e:
+                        logging.error("failure to update the KVstore and add execution Metadata, exception=\"{}\"".format(str(e)))
 
 dispatch(RbaGenModels, sys.argv, sys.stdin, sys.stdout, __name__)
