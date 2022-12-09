@@ -97,6 +97,19 @@ class RbaGenModels(GeneratingCommand):
         **Description:** The time factor value for the ML model.''',
         require=False, default="%w%H", validate=validators.Match("lower_threshold", r"^.*$"))
 
+    earliest_time = Option(
+        doc='''
+        **Syntax:** **earliest_time=****
+        **Description:** The earliest time quantifier for the mstats ML training search.''',
+        require=False, default="-90d", validate=validators.Match("earliest_time", r"^.*$"))
+
+    latest_time = Option(
+        doc='''
+        **Syntax:** **latest_time=****
+        **Description:** The latest time quantifier for the mstats ML training search.''',
+        require=False, default="now", validate=validators.Match("latest_time", r"^.*$"))
+
+
     def generate(self, **kwargs):
 
         # set loglevel
@@ -228,6 +241,8 @@ class RbaGenModels(GeneratingCommand):
                     lower_threshold = self.lower_threshold
                     upper_threshold = self.upper_threshold
                     time_factor = self.time_factor
+                    earliest_time = self.earliest_time
+                    latest_time = self.latest_time
 
                     new_kvrecord = {
                         "bunit": bunit,
@@ -235,6 +250,8 @@ class RbaGenModels(GeneratingCommand):
                         "lower_threshold": self.lower_threshold,
                         "upper_threshold": self.upper_threshold,
                         "time_factor": self.time_factor,
+                        "earliest_time": self.earliest_time,
+                        "latest_time": self.latest_time,
                         "last_exec": "pending",
                         "last_status": "pending",
                         "last_results_count": "pending",
@@ -253,6 +270,8 @@ class RbaGenModels(GeneratingCommand):
                         lower_threshold = kvrecord.get('lower_threshold')
                         upper_threshold = kvrecord.get('uper_threshold')
                         time_factor = kvrecord.get('time_factor')
+                        earliest_time = kvrecord.get('earliest_time')
+                        latest_time = kvrecord.get('latest_time')
 
                         # log
                         logging.info("successfully loaded the bunit configuration from record=\"{}\"".format(json.dumps(kvrecord, indent=2)))
@@ -263,6 +282,8 @@ class RbaGenModels(GeneratingCommand):
                         lower_threshold = self.lower_threshold
                         upper_threshold = self.upper_threshold
                         time_factor = self.time_factor
+                        earliest_time = self.earliest_time
+                        latest_time = self.latest_time
 
                         # log
                         logging.error("failure to retrieve values from the KVstore record=\"{}\" with exception=\"{}\"".format(json.dumps(kvrecord, indent=2), str(e)))
@@ -305,8 +326,8 @@ class RbaGenModels(GeneratingCommand):
 
                 # set kwargs
                 kwargs = {
-                                    "earliest_time": "-90d",
-                                    "latest_time": "now",
+                                    "earliest_time": earliest_time,
+                                    "latest_time": latest_time,
                                     "output_mode": "json",
                                     "count": 0,
                                 }
