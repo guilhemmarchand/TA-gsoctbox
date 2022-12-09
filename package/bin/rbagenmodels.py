@@ -89,7 +89,7 @@ class RbaGenModels(GeneratingCommand):
         doc='''
         **Syntax:** **upper_threshold=****
         **Description:** The upper threshold value for the ML model.''',
-        require=False, default="0.005", validate=validators.Match("lower_threshold", r"^[\d|\.]*$"))
+        require=False, default="0.005", validate=validators.Match("upper_threshold", r"^[\d|\.]*$"))
 
     time_factor = Option(
         doc='''
@@ -266,9 +266,12 @@ class RbaGenModels(GeneratingCommand):
 
                     try:
 
+                        # log debug
+                        logging.debug("kvrecord=\"{}\"".format(json.dumps(kvrecord, indent=2)))
+
                         # get the values from the KVstore
                         lower_threshold = kvrecord.get('lower_threshold')
-                        upper_threshold = kvrecord.get('uper_threshold')
+                        upper_threshold = kvrecord.get('upper_threshold')
                         time_factor = kvrecord.get('time_factor')
                         earliest_time = kvrecord.get('earliest_time')
                         latest_time = kvrecord.get('latest_time')
@@ -315,6 +318,7 @@ class RbaGenModels(GeneratingCommand):
                         logging.error("failure to delete ML lookup_name=\"{}\" with exception:\"{}\"".format(ml_model_lookup_name, str(e)))
 
                 # - the search logic that generates and train the ML model
+                logging.debug("bunit=\"{}\", time_factor=\"{}\", lower_threshold=\"{}\", upper_threshold=\"{}\", modelid=\"{}\"".format(bunit, time_factor, lower_threshold, upper_threshold, modelid))
 
                 mlmodel_gen_search = "| mstats avg(rba.cummulative_risk_score) as rba.cummulative_risk_score where index=security_siem_metrics " +\
                     "risk_object_bunit=\"" + bunit.replace("|", "\\|") + "\" by risk_object_bunit span=1h" +\
@@ -333,7 +337,7 @@ class RbaGenModels(GeneratingCommand):
                                 }
 
                 # process the search
-                logging.debug("mlmodel_gen_search=\"{}\", earliest=\"{}\", latest=\"{}\"".format(mlmodel_gen_search, kwargs.get('earliest_time'), kwargs.get('latest_time')))
+                logging.info("mlmodel_gen_search=\"{}\", earliest=\"{}\", latest=\"{}\"".format(mlmodel_gen_search, kwargs.get('earliest_time'), kwargs.get('latest_time')))
 
                 # run the main report, every result is a Splunk search to be executed on its own thread
 
