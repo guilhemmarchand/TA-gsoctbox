@@ -95,7 +95,7 @@ class RbaGenModels(GeneratingCommand):
         doc='''
         **Syntax:** **time_factor=****
         **Description:** The time factor value for the ML model.''',
-        require=False, default="%w%H", validate=validators.Match("lower_threshold", r"^.*$"))
+        require=False, default="%H", validate=validators.Match("lower_threshold", r"^.*$"))
 
     earliest_time = Option(
         doc='''
@@ -247,6 +247,7 @@ class RbaGenModels(GeneratingCommand):
                     new_kvrecord = {
                         "bunit": bunit,
                         "kpi": kpi,
+                        "enabled": 1,
                         "lower_threshold": self.lower_threshold,
                         "upper_threshold": self.upper_threshold,
                         "time_factor": self.time_factor,
