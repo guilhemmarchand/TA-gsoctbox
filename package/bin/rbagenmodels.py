@@ -320,13 +320,13 @@ class RbaGenModels(GeneratingCommand):
                 # - the search logic that generates and train the ML model
                 logging.debug("bunit=\"{}\", time_factor=\"{}\", lower_threshold=\"{}\", upper_threshold=\"{}\", modelid=\"{}\"".format(bunit, time_factor, lower_threshold, upper_threshold, modelid))
 
-                mlmodel_gen_search = "| mstats avg(rba.cummulative_risk_score) as rba.cummulative_risk_score where index=security_siem_metrics " +\
+                mlmodel_gen_search = "| mstats avg(" + kpi + ") as " + kpi + " where index=security_siem_metrics " +\
                     "risk_object_bunit=\"" + bunit.replace("|", "\\|") + "\" by risk_object_bunit span=1h" +\
                     "\n| eval factor=strftime(_time, \"" + time_factor + "\")" +\
-                    "\n| fit DensityFunction rba.cummulative_risk_score lower_threshold=" + lower_threshold + " upper_threshold=" + upper_threshold + " into " + modelid  + " by factor" +\
+                    "\n| fit DensityFunction " + kpi + " lower_threshold=" + lower_threshold + " upper_threshold=" + upper_threshold + " into " + modelid  + " by factor" +\
                     "\n| rex field=BoundaryRanges \"(-Infinity:(?<LowerBound>[\d|\.]*))|((?<UpperBound>[\d|\.]*):Infinity)\"" +\
                     "\n| foreach LowerBound UpperBound [ eval <<FIELD>> = if(isnum('<<FIELD>>'), '<<FIELD>>', 0) ]" +\
-                    "\n| fields _time rba.cummulative_risk_score LowerBound UpperBound"
+                    "\n| fields _time " + kpi + " LowerBound UpperBound"
 
                 # set kwargs
                 kwargs = {
@@ -386,7 +386,8 @@ class RbaGenModels(GeneratingCommand):
                         'action': 'success',
                         'bunit': bunit,
                         'kpi': kpi,
-                        'modelid': ml_model_lookup_name,
+                        'modelid': modelid,
+                        'model_lookup_file': ml_model_lookup_name,
                         'results_count': results_count,
                         'runtime': runtime,
                         'search': mlmodel_gen_search,
@@ -400,6 +401,7 @@ class RbaGenModels(GeneratingCommand):
                         'bunit': yield_record.get('bunit'),
                         'kpi': yield_record.get('kpi'),
                         'modelid': yield_record.get('modelid'),
+                        'model_lookup_file': yield_record.get('model_lookup_file'),
                         'results_count': yield_record.get('results_count'),
                         'runtime': yield_record.get('runtime'),
                         'search': yield_record.get('mlmodel_gen_search'),
@@ -414,8 +416,9 @@ class RbaGenModels(GeneratingCommand):
                         current_kvrecord['last_exec'] = time.time()
                         current_kvrecord['last_status'] = 'success'
                         current_kvrecord['last_results_count'] = results_count
-                        current_kvrecord['last_message'] = "Machine Leaning Model ml_model_lookup_name=\"{}\" was processed successfully".format(ml_model_lookup_name)
-                        current_kvrecord['modelid'] = ml_model_lookup_name
+                        current_kvrecord['last_message'] = "Machine Leaning Model modelid=\"{}\" was processed successfully".format(modelid)
+                        current_kvrecord['modelid'] = modelid
+                        current_kvrecord['model_lookup_file'] = ml_model_lookup_name
                         collection.data.update(str(current_key), json.dumps(current_kvrecord))
 
                     except Exception as e:
@@ -435,7 +438,8 @@ class RbaGenModels(GeneratingCommand):
                         'exception': str(e),
                         'bunit': bunit,
                         'kpi': kpi,
-                        'modelid': ml_model_lookup_name,
+                        'modelid': modelid,
+                        'model_lookup_file': ml_model_lookup_name,
                         'results_count': results_count,
                         'search': mlmodel_gen_search,
                         '_raw': "failed processing ML model training"
@@ -449,6 +453,7 @@ class RbaGenModels(GeneratingCommand):
                         'bunit': yield_record.get('bunit'),
                         'kpi': yield_record.get('kpi'),
                         'modelid': yield_record.get('modelid'),
+                        'model_lookup_file': yield_record.get('model_lookup_file'),
                         'results_count': yield_record.get('results_count'),
                         'search': yield_record.get('mlmodel_gen_search'),
                     }
@@ -462,8 +467,9 @@ class RbaGenModels(GeneratingCommand):
                         current_kvrecord['last_exec'] = time.time()
                         current_kvrecord['last_status'] = 'failure'
                         current_kvrecord['last_results_count'] = 0
-                        current_kvrecord['last_message'] = "Machine Leaning Model ml_model_lookup_name=\"{}\" training has failed, exception=\{}\"".format(ml_model_lookup_name, str(e))
-                        current_kvrecord['modelid'] = ml_model_lookup_name
+                        current_kvrecord['last_message'] = "Machine Leaning Model modelid=\"{}\" training has failed, exception=\{}\"".format(modelid, str(e))
+                        current_kvrecord['modelid'] = modelid
+                        current_kvrecord['model_lookup_file'] = ml_model_lookup_name
                         collection.data.update(str(current_key), json.dumps(current_kvrecord))
 
                     except Exception as e:
