@@ -232,13 +232,15 @@ class RbaRenderOutliers(GeneratingCommand):
                 else:
                     logging.info("processing outliers detection for bunit=\"{}\", kpi=\"{}\"".format(bunit, kpi))
 
-                mlmodel_render_search = "| mstats avg(" + kpi + ") as " + kpi + " where index=security_siem_metrics " +\
+                mlmodel_root_search = "| mstats avg(" + kpi + ") as " + kpi + " where index=security_siem_metrics " +\
                     "risk_object_bunit=\"" + bunit.replace("|", "\\|") + "\" by risk_object_bunit span=1h" +\
                     "\n| eval factor=strftime(_time, \"" + kvrecord.get("time_factor") + "\")" +\
                     "\n| apply " + kvrecord.get("modelid") +\
                     "\n| rex field=BoundaryRanges \"(-Infinity:(?<LowerBound>[\d|\.]*))|((?<UpperBound>[\d|\.]*):Infinity)\"" +\
                     "\n| foreach LowerBound UpperBound [ eval <<FIELD>> = if(isnum('<<FIELD>>'), '<<FIELD>>', 0) ]" +\
-                    "\n| fields _time " + kpi + " LowerBound UpperBound | sort 0 - _time | head 1"
+                    "\n| fields _time " + kpi + " LowerBound UpperBound | sort 0 - _time"
+
+                mlmodel_render_search = mlmodel_root_search + " | head 1"
 
                 # set kwargs
                 kwargs = {
@@ -284,7 +286,8 @@ class RbaRenderOutliers(GeneratingCommand):
                                             'detection_status': 'outliers_detected',
                                             'current_kpi_value': current_kpi_value,
                                             'lowerbound_value': lowerbound_value,
-                                            'model_render_search': mlmodel_render_search,
+                                            'mlmodel_root_search': mlmodel_root_search,
+                                            'modelid': kvrecord.get("modelid"),
                                             'result': 'Outliers detected for bunit=\"{}\", kpi=\"{}\" with LowerBound threshold reached'.format(bunit, kpi),
                                         },
                                         'bunit': bunit,
@@ -292,6 +295,8 @@ class RbaRenderOutliers(GeneratingCommand):
                                         'detection_status': 'outliers_detected',
                                         'current_kpi_value': current_kpi_value,
                                         'lowerbound_value': lowerbound_value,
+                                        'mlmodel_root_search': mlmodel_root_search,
+                                        'modelid': kvrecord.get("modelid"),
                                         'result': 'Outliers detected for bunit=\"{}\", kpi=\"{}\" with LowerBound threshold reached'.format(bunit, kpi),
                                     }
                                 else:
@@ -303,7 +308,8 @@ class RbaRenderOutliers(GeneratingCommand):
                                             'detection_status': 'outliers_passed',
                                             'current_kpi_value': current_kpi_value,
                                             'lowerbound_value': lowerbound_value,
-                                            'model_render_search': mlmodel_render_search,
+                                            'mlmodel_root_search': mlmodel_root_search,
+                                            'modelid': kvrecord.get("modelid"),
                                             'result': 'There are no outliers detected for bunit=\"{}\", kpi=\"{}\", LowerBound thresold not reached'.format(bunit, kpi),
                                         },
                                         'bunit': bunit,
@@ -311,6 +317,8 @@ class RbaRenderOutliers(GeneratingCommand):
                                         'detection_status': 'outliers_passed',
                                         'current_kpi_value': current_kpi_value,
                                         'lowerbound_value': lowerbound_value,
+                                        'mlmodel_root_search': mlmodel_root_search,
+                                        'modelid': kvrecord.get("modelid"),
                                         'result': 'There are no outliers detected for bunit=\"{}\", kpi=\"{}\", LowerBound thresold not reached'.format(bunit, kpi),
                                     }
                                 # append to our results
@@ -327,7 +335,8 @@ class RbaRenderOutliers(GeneratingCommand):
                                             'detection_status': 'outliers_detected',
                                             'current_kpi_value': current_kpi_value,
                                             'upperbound_value': upperbound_value,
-                                            'model_render_search': mlmodel_render_search,
+                                            'mlmodel_root_search': mlmodel_root_search,
+                                            'modelid': kvrecord.get("modelid"),
                                             'result': 'Outliers detected for bunit=\"{}\", kpi=\"{}\" with UpperBound threshold reached'.format(bunit, kpi),
                                         },
                                         'bunit': bunit,
@@ -335,6 +344,8 @@ class RbaRenderOutliers(GeneratingCommand):
                                         'detection_status': 'outliers_detected',
                                         'current_kpi_value': current_kpi_value,
                                         'upperbound_value': upperbound_value,
+                                        'mlmodel_root_search': mlmodel_root_search,
+                                        'modelid': kvrecord.get("modelid"),
                                         'result': 'Outliers detected for bunit=\"{}\", kpi=\"{}\" with UpperBound threshold reached'.format(bunit, kpi),
                                     }
                                 else:
@@ -346,7 +357,8 @@ class RbaRenderOutliers(GeneratingCommand):
                                             'detection_status': 'outliers_passed',
                                             'current_kpi_value': current_kpi_value,
                                             'upperbound_value': upperbound_value,
-                                            'model_render_search': mlmodel_render_search,
+                                            'mlmodel_root_search': mlmodel_root_search,
+                                            'modelid': kvrecord.get("modelid"),
                                             'result': 'There are no outliers detected for bunit=\"{}\", kpi=\"{}\", UpperBound thresold not reached'.format(bunit, kpi),
                                         },
                                         'bunit': bunit,
@@ -354,7 +366,8 @@ class RbaRenderOutliers(GeneratingCommand):
                                         'detection_status': 'outliers_passed',
                                         'current_kpi_value': current_kpi_value,
                                         'upperbound_value': upperbound_value,
-                                        'model_render_search': mlmodel_render_search,
+                                        'mlmodel_root_search': mlmodel_root_search,
+                                        'modelid': kvrecord.get("modelid"),
                                         'result': 'There are no outliers detected for bunit=\"{}\", kpi=\"{}\", UpperBound thresold not reached'.format(bunit, kpi),
                                     }
                                 # append to our results
