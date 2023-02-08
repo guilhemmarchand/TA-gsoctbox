@@ -76,19 +76,17 @@ class RiskReset(GeneratingCommand):
         **Description:** value for risk_score.''',
         require=True, default=None, validate=validators.Match("risk_score", r"^[\-|\d\.]*"))
 
+    logging_level = Option(
+        doc='''
+        **Syntax:** **logging_level=****
+        **Description:** value for logging_level.''',
+        require=True, default="info", validate=validators.Match("mode", r"^(INFO|DEBUG|WARN|ERROR)"))
+
+
     def generate(self, **kwargs):
 
         # set loglevel
-        loglevel = 'INFO'
-        conf_file = "ta_gsoctbox_settings"
-        confs = self.service.confs[str(conf_file)]
-        for stanza in confs:
-            if stanza.name == 'logging':
-                for stanzakey, stanzavalue in stanza.content.items():
-                    if stanzakey == "loglevel":
-                        loglevel = stanzavalue
-        logginglevel = logging.getLevelName(loglevel)
-        log.setLevel(logginglevel)
+        log.setLevel(self.logging_level)
 
         # Get the session key
         session_key = self._metadata.searchinfo.session_key
