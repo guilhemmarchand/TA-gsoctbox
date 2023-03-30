@@ -37,7 +37,7 @@ def report_update_enablement(session_key, app, report_name, action):
         raise Exception("Invalid value for action=\"{}\", valid options are: enable | disable".format(action))
 
     else:
-        report_name_encoded = urllib.parse.quote(str(report_name))
+        report_name_encoded = urllib.parse.quote(report_name, safe='~()*!.\'')
         record_url = 'https://localhost:%s/servicesNS/nobody/%s/saved/searches/%s/%s' % (splunkd_port, app, report_name_encoded, action)
 
         logging.info("attempting to {} report report_name=\"{}\"".format(action, report_name))

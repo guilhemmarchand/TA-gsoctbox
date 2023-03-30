@@ -183,6 +183,7 @@ class GsocMassDisabler(GeneratingCommand):
                             'action': 'disable',
                             'mode': self.mode,
                             'result': msg,
+                            'search': search,
                         }
 
                 # yield
