@@ -3,41 +3,7 @@
         "configuration": {
             "tabs": [
                 {
-                    "name": "logging",
-                    "entity": [
-                        {
-                            "type": "singleSelect",
-                            "label": "Log level",
-                            "options": {
-                                "disableSearch": true,
-                                "autoCompleteFields": [
-                                    {
-                                        "value": "DEBUG",
-                                        "label": "DEBUG"
-                                    },
-                                    {
-                                        "value": "INFO",
-                                        "label": "INFO"
-                                    },
-                                    {
-                                        "value": "WARNING",
-                                        "label": "WARNING"
-                                    },
-                                    {
-                                        "value": "ERROR",
-                                        "label": "ERROR"
-                                    },
-                                    {
-                                        "value": "CRITICAL",
-                                        "label": "CRITICAL"
-                                    }
-                                ]
-                            },
-                            "defaultValue": "INFO",
-                            "field": "loglevel"
-                        }
-                    ],
-                    "title": "Logging"
+                    "type": "loggingTab"
                 }
             ],
             "title": "Configuration",
@@ -47,8 +13,9 @@
     "meta": {
         "name": "TA-gsoctbox",
         "restRoot": "ta_gsoctbox",
-        "version": "1.0.17",
+        "version": "1.0.18",
         "displayName": "utility toolbox for GSOC",
-        "schemaVersion": "0.0.3"
+        "schemaVersion": "0.0.9",
+        "_uccVersion": "5.53.0"
     }
 }
