@@ -264,6 +264,23 @@ def gen_app():
                 if file.endswith(".pyc"):
                     os.remove(os.path.join(dirpath, file))
 
+        # Verify that there are no *.pyc file in app_root, and purge otherwise
+        purged_files = glob.glob(os.path.join(app_root, "**/*.pyc"), recursive=True)
+        for file_name in purged_files:
+            logging.debug('Attempting to remove pyc file="{}"'.format(file_name))
+            if os.path.isfile(file_name):
+                try:
+                    os.remove(file_name)
+                    logging.debug(
+                        'pyc file="{}" was deleted successfully'.format(file_name)
+                    )
+                except Exception as e:
+                    logging.error(
+                        'pyc file="{}" could not be deleted, exception="{}"'.format(
+                            file_name, e
+                        )
+                    )
+
         # gen tar
         tar_file = f"{app_root}_v{str(version_release_number).replace('.', '')}_{build_number}.tgz"
         out = tarfile.open(tar_file, mode="w:gz")
