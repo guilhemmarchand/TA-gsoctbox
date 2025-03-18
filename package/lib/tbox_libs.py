@@ -35,17 +35,21 @@ def report_update_enablement(splunkd_uri, session_key, app, report_name, action)
         )
 
     else:
+
+        session = requests.Session()
+        session.headers.update(header)
+
         report_name_encoded = urllib.parse.quote(report_name, safe="~()*!.'")
         record_url = f"{splunkd_uri}/servicesNS/nobody/{app}/saved/searches/{report_name_encoded}/{action}"
 
         logging.info(f'attempting to {action} report report_name="{report_name}"')
         try:
-            response = requests.post(record_url, headers=header, verify=False)
-            logging.info(
-                f'action="success", report_name="{report_name}", http_status_code="{response.status_code}"'
-            )
-            response.raise_for_status()
-            return "success"
+            with session.post(record_url, headers=header, verify=False) as response:
+                logging.info(
+                    f'action="success", report_name="{report_name}", http_status_code="{response.status_code}"'
+                )
+                response.raise_for_status()
+                return "success"
         except Exception as e:
             logging.error(
                 f'failure to update report report_name="{report_name}" with exception:"{str(e)}"'
