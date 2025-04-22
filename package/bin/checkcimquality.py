@@ -63,12 +63,21 @@ class CheckCimQuality(StreamingCommand):
         validate=validators.Match("fields", r"^.*$"),
     )
 
+    include_field_values = Option(
+        doc="""
+        **Syntax:** **include_field_values=****
+        **Description:** Boolean option to include field values in the JSON summary.
+        """,
+        require=False,
+        default=False,
+        validate=validators.Boolean(),
+    )
+
     # status will be statically defined as imported
 
     def stream(self, records):
 
         # set loglevel
-        loglevel = "INFO"
         conf_file = "ta_gsoctbox_settings"
         confs = self.service.confs[str(conf_file)]
         for stanza in confs:
@@ -111,6 +120,8 @@ class CheckCimQuality(StreamingCommand):
                         "status": "success",
                         "description": "Field exists and is valid.",
                     }
+                    if self.include_field_values:
+                        json_summary[field]["value"] = field_value
                 else:
                     # Mark as failure with specific reason
                     if field_value is None or field_value == "":
@@ -123,6 +134,8 @@ class CheckCimQuality(StreamingCommand):
                         "status": "failure",
                         "description": f"Field {reason}.",
                     }
+                    if self.include_field_values:
+                        json_summary[field]["value"] = field_value
                     total_fields_failed += 1
 
             # Determine overall status
