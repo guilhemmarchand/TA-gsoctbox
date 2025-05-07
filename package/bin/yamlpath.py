@@ -10,7 +10,10 @@ __status__ = "PRODUCTION"
 import os
 import sys
 import logging
+from logging.handlers import RotatingFileHandler
 import yaml
+import time
+import json
 import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -18,8 +21,11 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 splunkhome = os.environ["SPLUNK_HOME"]
 
 # set logging
-filehandler = logging.FileHandler(
-    splunkhome + "/var/log/splunk/gsoctbox_yamlpath.log", "a"
+filehandler = RotatingFileHandler(
+    "%s/var/log/splunk/gsoctbox_yamlpath.log" % splunkhome,
+    mode="a",
+    maxBytes=10000000,
+    backupCount=1,
 )
 formatter = logging.Formatter(
     "%(asctime)s %(levelname)s %(filename)s %(funcName)s %(lineno)d %(message)s"
@@ -46,7 +52,22 @@ from splunklib.searchcommands import (
 
 
 @Configuration()
-class YamlPathCommand(StreamingCommand):
+class parseyamlCommand(StreamingCommand):
+
+    def flatten_yaml(self, data, parent_key="", sep="."):
+        """Recursively flattens a nested dictionary or list into a flat dictionary."""
+        items = {}
+        if isinstance(data, dict):
+            for k, v in data.items():
+                new_key = f"{parent_key}{sep}{k}" if parent_key else k
+                items.update(self.flatten_yaml(v, new_key, sep=sep))
+        elif isinstance(data, list):
+            for i, v in enumerate(data):
+                new_key = f"{parent_key}{sep}{i}" if parent_key else str(i)
+                items.update(self.flatten_yaml(v, new_key, sep=sep))
+        else:
+            items[parent_key] = data
+        return items
 
     def stream(self, records):
 
@@ -59,8 +80,9 @@ class YamlPathCommand(StreamingCommand):
                 for stanzakey, stanzavalue in stanza.content.items():
                     if stanzakey == "loglevel":
                         loglevel = stanzavalue
-        logginglevel = logging.getLevelName(loglevel)
-        log.setLevel(logginglevel)
+        log.setLevel(loglevel)
+
+        logging.debug(f"starting parseyaml")
 
         # Loop in the results
         for record in records:
@@ -70,16 +92,20 @@ class YamlPathCommand(StreamingCommand):
             # Attempt to parse _raw as YAML
             try:
                 yaml_content = yaml.safe_load(record["_raw"])
-                if isinstance(yaml_content, dict):
-                    for key, value in yaml_content.items():
-                        yield_record[key] = value
-                else:
-                    log.error("Parsed YAML content is not a dictionary")
+                flat_yaml = self.flatten_yaml(yaml_content)
+                yield_record.update(flat_yaml)
+
             except Exception as e:
-                log.error("Failed to parse YAML from _raw: {}".format(e))
+                log.error(f"Failed to parse YAML from _raw: {e}")
                 yield_record["_raw"] = record["_raw"]
+
+            yield_record["_time"] = record.get("_time", time.time())
+            yield_record["_raw"] = record["_raw"]
 
             yield yield_record
 
+        # end
+        logging.debug(f"parseyaml done")
 
-dispatch(YamlPathCommand, sys.argv, sys.stdin, sys.stdout, __name__)
+
+dispatch(parseyamlCommand, sys.argv, sys.stdin, sys.stdout, __name__)
