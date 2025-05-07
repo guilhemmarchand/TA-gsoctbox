@@ -51,7 +51,7 @@ from splunklib.searchcommands import (
 )
 
 
-@Configuration()
+@Configuration(distributed=False)
 class parseyamlCommand(StreamingCommand):
 
     def flatten_yaml(self, data, parent_key="", sep="."):
