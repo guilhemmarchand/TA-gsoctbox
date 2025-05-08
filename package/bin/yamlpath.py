@@ -55,16 +55,15 @@ from splunklib.searchcommands import (
 class parseyamlCommand(StreamingCommand):
 
     def flatten_yaml(self, data, parent_key="", sep="."):
-        """Recursively flattens a nested dictionary or list into a flat dictionary."""
+        """Recursively flattens a nested dictionary or list into a flat dictionary, storing lists as single fields."""
         items = {}
         if isinstance(data, dict):
             for k, v in data.items():
                 new_key = f"{parent_key}{sep}{k}" if parent_key else k
                 items.update(self.flatten_yaml(v, new_key, sep=sep))
         elif isinstance(data, list):
-            for i, v in enumerate(data):
-                new_key = f"{parent_key}{sep}{i}" if parent_key else str(i)
-                items.update(self.flatten_yaml(v, new_key, sep=sep))
+            # Store the list as a single field
+            items[parent_key] = data
         else:
             items[parent_key] = data
         return items
@@ -82,7 +81,7 @@ class parseyamlCommand(StreamingCommand):
                         loglevel = stanzavalue
         log.setLevel(loglevel)
 
-        logging.debug(f"starting parseyaml")
+        logging.debug(f"starting yamlpath")
 
         # Loop in the results
         for record in records:
@@ -96,7 +95,7 @@ class parseyamlCommand(StreamingCommand):
                 yield_record.update(flat_yaml)
 
             except Exception as e:
-                log.error(f"Failed to parse YAML from _raw: {e}")
+                log.error("Failed to parse YAML from _raw: {}".format(e))
                 yield_record["_raw"] = record["_raw"]
 
             yield_record["_time"] = record.get("_time", time.time())
@@ -105,7 +104,7 @@ class parseyamlCommand(StreamingCommand):
             yield yield_record
 
         # end
-        logging.debug(f"parseyaml done")
+        logging.debug(f"yamlpath done")
 
 
 dispatch(parseyamlCommand, sys.argv, sys.stdin, sys.stdout, __name__)
