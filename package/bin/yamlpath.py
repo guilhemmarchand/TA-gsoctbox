@@ -59,7 +59,11 @@ class parseyamlCommand(StreamingCommand):
         items = {}
         if isinstance(data, dict):
             for k, v in data.items():
-                new_key = f"{parent_key}{sep}{k}" if parent_key else k
+                new_key = (
+                    f"{parent_key}{sep}{k.replace(' ', '_')}"
+                    if parent_key
+                    else k.replace(" ", "_")
+                )
                 items.update(self.flatten_yaml(v, new_key, sep=sep))
         elif isinstance(data, list):
             # Store the list as a single field
