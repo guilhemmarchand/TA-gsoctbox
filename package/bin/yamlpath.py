@@ -11,9 +11,7 @@ import os
 import sys
 import logging
 from logging.handlers import RotatingFileHandler
-import yaml
 import time
-import json
 import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -49,6 +47,9 @@ from splunklib.searchcommands import (
     Option,
     validators,
 )
+
+# import yaml from lib
+import yaml
 
 
 @Configuration(distributed=False)
