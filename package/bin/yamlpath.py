@@ -55,6 +55,19 @@ import yaml
 @Configuration(distributed=False)
 class parseyamlCommand(StreamingCommand):
 
+    def generate_fields(self, records):
+        # this function ensures that records have the same list of fields to allow Splunk to automatically extract these fields
+        # if a given result does not have a given field, it will be added to the record as an empty value
+        all_keys = set()
+        for record in records:
+            all_keys.update(record.keys())
+
+        for record in records:
+            for key in all_keys:
+                if key not in record:
+                    record[key] = ""
+            yield record
+
     def flatten_yaml(self, data, parent_key="", sep="."):
         """Recursively flattens a nested dictionary or list into a flat dictionary, storing lists as single fields."""
         items = {}
@@ -89,6 +102,7 @@ class parseyamlCommand(StreamingCommand):
         logging.debug(f"starting yamlpath")
 
         # Loop in the results
+        yield_records = []
         for record in records:
 
             yield_record = {}
@@ -106,6 +120,10 @@ class parseyamlCommand(StreamingCommand):
             yield_record["_time"] = record.get("_time", time.time())
             yield_record["_raw"] = record["_raw"]
 
+            yield_records.append(yield_record)
+
+        # final yield processing
+        for yield_record in self.generate_fields(yield_records):
             yield yield_record
 
         # end
