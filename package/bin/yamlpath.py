@@ -115,7 +115,7 @@ class parseyamlCommand(StreamingCommand):
 
             except Exception as e:
                 log.error(
-                    f"Failed to parse YAML from _raw, source={record.get('source')}, exception={str(e)}"
+                    f"Failed to parse YAML from _raw, exception={str(e)}, record={record}"
                 )
                 yield_record["_raw"] = record["_raw"]
 
